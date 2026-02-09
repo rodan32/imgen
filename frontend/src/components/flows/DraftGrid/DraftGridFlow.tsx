@@ -39,6 +39,8 @@ export function DraftGridFlow() {
   const [negativePrompt, setNegativePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("square");
+  const [exploreMode, setExploreMode] = useState(true);  // Default ON for draft stage
+  const [autoLora, setAutoLora] = useState(false);
 
   // WebSocket connection
   useWebSocket(session?.id ?? null);
@@ -83,6 +85,8 @@ export function DraftGridFlow() {
         steps: config.steps,
         count: config.count,
         checkpoint: config.model === "sd15" ? "beenyouLite_l15.safetensors" : "epicrealismXL_pureFix.safetensors",
+        explore_mode: exploreMode,
+        auto_lora: autoLora,
       });
       setBatch(resp.batch_id, resp.total_count);
     } catch (e) {
@@ -90,7 +94,7 @@ export function DraftGridFlow() {
     } finally {
       setIsGenerating(false);
     }
-  }, [session, prompt, negativePrompt, currentStageConfig, aspectRatio, setStage, setBatch]);
+  }, [session, prompt, negativePrompt, currentStageConfig, aspectRatio, exploreMode, autoLora, setStage, setBatch]);
 
   const handleAdvance = useCallback(async () => {
     if (!session || selectedIds.length === 0) return;
@@ -280,7 +284,38 @@ export function DraftGridFlow() {
             {isGenerating ? "Generating..." : `Generate ${currentStageConfig.count}`}
           </button>
         </div>
-        <NegativePromptEditor value={negativePrompt} onChange={setNegativePrompt} />
+
+        {/* Second row: Negative prompt and feature toggles */}
+        <div className="flex gap-3 items-center">
+          <div className="flex-1">
+            <NegativePromptEditor value={negativePrompt} onChange={setNegativePrompt} />
+          </div>
+
+          {/* Feature toggles */}
+          <div className="flex gap-3 items-center text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exploreMode}
+                onChange={(e) => setExploreMode(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-surface-2 text-accent
+                  focus:ring-accent focus:ring-offset-0"
+              />
+              <span className="text-gray-300">Explore Mode</span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoLora}
+                onChange={(e) => setAutoLora(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-surface-2 text-accent
+                  focus:ring-accent focus:ring-offset-0"
+              />
+              <span className="text-gray-300">Auto-LoRA</span>
+            </label>
+          </div>
+        </div>
       </div>
 
       {/* Batch progress */}

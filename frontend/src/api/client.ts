@@ -80,6 +80,8 @@ export interface BatchGenerateParams {
   session_id: string;
   prompt: string;
   negative_prompt?: string;
+  explore_mode?: boolean;
+  auto_lora?: boolean;
   model_family?: string;
   task_type?: string;
   width?: number;

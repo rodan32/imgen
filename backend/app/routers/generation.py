@@ -166,7 +166,39 @@ async def generate_batch(
         raise HTTPException(status_code=404, detail="Session not found")
 
     task_router = request.app.state.task_router
+    lora_discovery = request.app.state.lora_discovery
+    checkpoint_learning = request.app.state.checkpoint_learning
     task_type = TaskType(req.task_type.value)
+
+    # Auto-LoRA: Discover relevant LoRAs if enabled and no LoRAs specified
+    discovered_loras = []
+    if req.auto_lora and not req.loras:
+        available_loras = lora_discovery.get_cached_loras(None)
+        if available_loras:
+            lora_specs = lora_discovery.suggest_lora_specs(req.prompt, available_loras, count=3)
+            discovered_loras = lora_specs
+            logger.info(
+                "Auto-LoRA discovered %d LoRAs for prompt: %s",
+                len(discovered_loras),
+                [l["name"] for l in discovered_loras]
+            )
+
+    # Explore Mode: Get multiple checkpoints to test
+    checkpoints_to_test = []
+    if req.explore_mode and not req.checkpoint:
+        tier = req.task_type.value
+        checkpoints_to_test = checkpoint_learning.get_checkpoints_for_tier(
+            req.model_family.value, tier, explore_mode=True
+        )
+        logger.info("Explore mode: testing %d checkpoints: %s", len(checkpoints_to_test), checkpoints_to_test)
+    else:
+        # Use single checkpoint (specified or default)
+        checkpoints_to_test = [req.checkpoint] if req.checkpoint else [None]
+
+    # Distribute batch across checkpoints
+    checkpoint_distribution = checkpoint_learning.distribute_batch_across_checkpoints(
+        req.count, checkpoints_to_test
+    )
 
     # Get GPU distribution
     try:
@@ -183,12 +215,23 @@ async def generate_batch(
 
     gpu_assignments = {node.id: count for node, count in assignments}
 
+    # Assign checkpoints to each generation index
+    checkpoint_assignments = []
+    for checkpoint, count in checkpoint_distribution.items():
+        checkpoint_assignments.extend([checkpoint] * count)
+
     # Create individual generation tasks
     index = 0
     for gpu_node, count in assignments:
         for i in range(count):
             seed = base_seed + index
             generation_id = str(uuid.uuid4())
+
+            # Get checkpoint for this generation
+            assigned_checkpoint = checkpoint_assignments[index] if index < len(checkpoint_assignments) else req.checkpoint
+
+            # Determine LoRAs: use discovered LoRAs or specified LoRAs
+            loras_to_use = req.loras if req.loras else discovered_loras
 
             gen_record = GenerationORM(
                 id=generation_id,
@@ -199,9 +242,9 @@ async def generate_batch(
                 prompt=req.prompt,
                 negative_prompt=req.negative_prompt,
                 model_family=req.model_family.value,
-                checkpoint=req.checkpoint,
+                checkpoint=assigned_checkpoint,
                 task_type=req.task_type.value,
-                loras=[l.model_dump() for l in req.loras],
+                loras=[l if isinstance(l, dict) else l for l in loras_to_use],
                 gpu_id=gpu_node.id,
                 seed=seed,
                 width=req.width,
@@ -219,7 +262,7 @@ async def generate_batch(
                 "prompt": req.prompt,
                 "negative_prompt": req.negative_prompt,
                 "model_family": req.model_family.value,
-                "checkpoint": req.checkpoint,
+                "checkpoint": assigned_checkpoint,
                 "width": req.width,
                 "height": req.height,
                 "steps": req.steps,
@@ -229,7 +272,7 @@ async def generate_batch(
                 "scheduler": req.scheduler,
                 "seed": seed,
                 "filename_prefix": f"imgen_{req.session_id}_{generation_id}",
-                "loras": [l.model_dump() for l in req.loras],
+                "loras": [l if isinstance(l, dict) else l for l in loras_to_use],
             }
 
             workflow_engine = request.app.state.workflow_engine
