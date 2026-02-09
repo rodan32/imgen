@@ -54,6 +54,7 @@ export function DraftGridFlow() {
         height: config.height,
         steps: config.steps,
         count: config.count,
+        checkpoint: config.model === "sd15" ? "beenyouLite_l15.safetensors" : "epicrealismXL_pureFix.safetensors",
       });
       setBatch(resp.batch_id, resp.total_count);
     } catch (e) {
@@ -91,6 +92,7 @@ export function DraftGridFlow() {
         height: nextConfig.height,
         steps: nextConfig.steps,
         count: nextConfig.count,
+        checkpoint: nextConfig.model === "sd15" ? "beenyouLite_l15.safetensors" : "epicrealismXL_pureFix.safetensors",
       });
       setBatch(batchResp.batch_id, batchResp.total_count);
     } catch (e) {
