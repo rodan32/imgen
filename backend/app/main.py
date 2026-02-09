@@ -21,6 +21,8 @@ from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
 from .services.task_router import TaskRouter
 from .services.workflow_engine import WorkflowEngine
+from .services.lora_discovery import LoRADiscovery
+from .services.checkpoint_learning import CheckpointLearning
 from .websocket.aggregator import ProgressAggregator
 
 logging.basicConfig(
@@ -72,6 +74,8 @@ async def lifespan(app: FastAPI):
     # 5. Initialize services
     task_router = TaskRouter(gpu_registry)
     image_store = ImageStore(DATA_DIR)
+    lora_discovery = LoRADiscovery()
+    checkpoint_learning = CheckpointLearning()
 
     # 6. Start progress aggregator
     progress_aggregator = ProgressAggregator(client_pool)
@@ -87,6 +91,8 @@ async def lifespan(app: FastAPI):
     app.state.task_router = task_router
     app.state.image_store = image_store
     app.state.progress_aggregator = progress_aggregator
+    app.state.lora_discovery = lora_discovery
+    app.state.checkpoint_learning = checkpoint_learning
     app.state.db_session = async_session  # session factory for background tasks
 
     # Run initial health check

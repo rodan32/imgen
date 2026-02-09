@@ -105,6 +105,8 @@ class BatchGenerationRequest(BaseModel):
     seed_start: int = -1
     loras: list[LoRASpec] = Field(default_factory=list)
     checkpoint: str | None = None
+    explore_mode: bool = False  # Enable checkpoint/LoRA experimentation
+    auto_lora: bool = False  # Automatically discover and apply relevant LoRAs
 
 
 class FeedbackRequest(BaseModel):

@@ -101,6 +101,15 @@ class ComfyUIClient:
         resp.raise_for_status()
         return resp.content
 
+    async def get_object_info(self) -> dict:
+        """
+        Get ComfyUI object info (available models, LoRAs, etc.).
+        Returns dictionary with node types and their available options.
+        """
+        resp = await self.http.get("/object_info")
+        resp.raise_for_status()
+        return resp.json()
+
     async def upload_image(
         self,
         image_bytes: bytes,
