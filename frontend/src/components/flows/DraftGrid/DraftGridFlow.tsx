@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -19,6 +19,7 @@ export function DraftGridFlow() {
   const iterationRound = useSessionStore((s) => s.iterationRound);
   const setStage = useSessionStore((s) => s.setStage);
   const advanceIteration = useSessionStore((s) => s.advanceIteration);
+  const goToStage = useSessionStore((s) => s.goToStage);
 
   const activeBatch = useGenerationStore((s) => s.activeBatch);
   const allGenerations = useGenerationStore((s) => s.generations);
@@ -141,26 +142,66 @@ export function DraftGridFlow() {
     }
   }, [session, prompt, selectedIds]);
 
+  // Keyboard navigation: Alt+Left/Right to navigate stages
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+
+      if (e.key === "ArrowLeft" && iterationRound > 0) {
+        // Go back to previous stage if it has generations
+        for (let i = iterationRound - 1; i >= 0; i--) {
+          const hasGens = Object.values(allGenerations).some((g) => g.stage === i);
+          if (hasGens) {
+            e.preventDefault();
+            goToStage(i);
+            break;
+          }
+        }
+      } else if (e.key === "ArrowRight" && iterationRound < STAGE_CONFIG.length - 1) {
+        // Go forward to next stage if it has generations
+        for (let i = iterationRound + 1; i < STAGE_CONFIG.length; i++) {
+          const hasGens = Object.values(allGenerations).some((g) => g.stage === i);
+          if (hasGens) {
+            e.preventDefault();
+            goToStage(i);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [iterationRound, allGenerations, goToStage]);
+
   return (
     <div className="flex flex-col h-full">
-      {/* Funnel breadcrumb */}
+      {/* Funnel breadcrumb - clickable navigation */}
       <div className="flex items-center gap-2 px-4 py-2 bg-surface-1 border-b border-surface-3">
-        {STAGE_CONFIG.map((config, i) => (
-          <div key={i} className="flex items-center gap-2">
-            {i > 0 && <span className="text-gray-600">&rarr;</span>}
-            <span
-              className={`text-sm px-2 py-0.5 rounded ${
-                i === iterationRound
-                  ? "bg-accent text-white"
-                  : i < iterationRound
-                    ? "bg-surface-3 text-gray-300"
-                    : "text-gray-500"
-              }`}
-            >
-              {config.count} {config.label}
-            </span>
-          </div>
-        ))}
+        {STAGE_CONFIG.map((config, i) => {
+          // Check if this stage has any generations
+          const hasGenerations = Object.values(allGenerations).some((g) => g.stage === i);
+          const isClickable = hasGenerations && i !== iterationRound;
+
+          return (
+            <div key={i} className="flex items-center gap-2">
+              {i > 0 && <span className="text-gray-600">&rarr;</span>}
+              <button
+                onClick={() => isClickable && goToStage(i)}
+                disabled={!isClickable}
+                className={`text-sm px-2 py-0.5 rounded transition-colors ${
+                  i === iterationRound
+                    ? "bg-accent text-white"
+                    : isClickable
+                      ? "bg-surface-3 text-gray-300 hover:bg-surface-4 cursor-pointer"
+                      : "text-gray-500 cursor-default"
+                }`}
+              >
+                {config.count} {config.label}
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Prompt input area */}

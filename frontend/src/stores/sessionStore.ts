@@ -12,6 +12,7 @@ interface SessionState {
   loadSession: (id: string) => Promise<void>;
   setStage: (stage: SessionStage) => void;
   advanceIteration: () => void;
+  goToStage: (stage: number) => void;
   reset: () => void;
 }
 
@@ -68,6 +69,12 @@ export const useSessionStore = create<SessionState>((set) => ({
       iterationRound: s.iterationRound + 1,
       sessionStage: "generating",
     })),
+
+  goToStage: (stage: number) =>
+    set({
+      iterationRound: stage,
+      sessionStage: "reviewing",
+    }),
 
   reset: () =>
     set({
