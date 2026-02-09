@@ -1,0 +1,63 @@
+# GPU Node Registry
+# Each entry represents a ComfyUI instance running on a specific GPU.
+# Update host/port values to match your network setup.
+
+nodes:
+  - id: gpu-premium
+    name: "RTX 5060 Ti"
+    vram_gb: 16
+    tier: premium
+    host: "192.168.0.20"  # 5060 Ti machine (Stability Matrix)
+    port: 8188
+    capabilities:
+      - sd15
+      - sdxl
+      - pony
+      - illustrious
+      - flux
+      - flux_fp8
+      - upscale
+      - controlnet
+      - ipadapter
+      - faceid
+    max_resolution: 1536
+    max_batch: 4
+
+  - id: gpu-quality
+    name: "RTX 4060 Ti"
+    vram_gb: 8
+    tier: quality
+    host: "192.168.1.101"  # UPDATE: IP of 4060 Ti machine
+    port: 8188
+    capabilities:
+      - sd15
+      - sdxl
+      - pony
+      - illustrious
+    max_resolution: 1024
+    max_batch: 4
+
+  - id: gpu-standard
+    name: "RTX 3060"
+    vram_gb: 12
+    tier: standard
+    host: "192.168.1.102"  # UPDATE: IP of 3060 machine
+    port: 8188
+    capabilities:
+      - sd15
+      - sdxl
+      - pony
+      - illustrious
+    max_resolution: 1024
+    max_batch: 2
+
+  - id: gpu-draft
+    name: "RTX 3050 Ti"
+    vram_gb: 4
+    tier: draft
+    host: "192.168.1.103"  # UPDATE: IP of 3050 Ti machine
+    port: 8188
+    capabilities:
+      - sd15
+    max_resolution: 512
+    max_batch: 1

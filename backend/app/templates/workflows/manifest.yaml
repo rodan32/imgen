@@ -1,0 +1,79 @@
+templates:
+  - name: sd15_txt2img
+    description: "SD 1.5 text-to-image (fast drafts)"
+    model_families: [sd15]
+    supports_img2img: false
+    default_params:
+      steps: 10
+      cfg_scale: 7.0
+      sampler: euler
+      scheduler: normal
+      width: 512
+      height: 512
+
+  - name: sd15_img2img
+    description: "SD 1.5 image-to-image"
+    model_families: [sd15]
+    supports_img2img: true
+    default_params:
+      steps: 15
+      cfg_scale: 7.0
+      sampler: euler
+      scheduler: normal
+      denoise_strength: 0.5
+
+  - name: sdxl_txt2img
+    description: "SDXL text-to-image"
+    model_families: [sdxl, pony, illustrious]
+    supports_img2img: false
+    default_params:
+      steps: 25
+      cfg_scale: 7.0
+      sampler: euler
+      scheduler: normal
+      width: 1024
+      height: 1024
+
+  - name: sdxl_img2img
+    description: "SDXL image-to-image"
+    model_families: [sdxl, pony, illustrious]
+    supports_img2img: true
+    default_params:
+      steps: 25
+      cfg_scale: 7.0
+      sampler: euler
+      scheduler: normal
+      denoise_strength: 0.5
+
+  - name: sdxl_with_lora
+    description: "SDXL with LoRA support"
+    model_families: [sdxl, pony, illustrious]
+    supports_img2img: false
+    supports_lora: true
+    max_loras: 3
+    default_params:
+      steps: 25
+      cfg_scale: 7.0
+      sampler: euler
+      scheduler: normal
+      width: 1024
+      height: 1024
+
+  - name: flux_txt2img
+    description: "Flux text-to-image"
+    model_families: [flux]
+    supports_img2img: false
+    default_params:
+      steps: 20
+      cfg_scale: 1.0
+      sampler: euler
+      scheduler: simple
+      width: 1024
+      height: 1024
+
+  - name: upscale_esrgan
+    description: "ESRGAN 4x upscale"
+    model_families: [any]
+    supports_img2img: true
+    default_params:
+      upscale_model: "4x-UltraSharp.pth"

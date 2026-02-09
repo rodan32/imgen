@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vibes-imgen-backend
+    ports:
+      - "8001:8001"
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/app/data
+      # Mount config for GPU registry
+      - ./config:/app/config:ro
+      # Mount templates (read-only)
+      - ./backend/app/templates:/app/app/templates:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/vibes.db
+    networks:
+      - vibes-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vibes-imgen-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - vibes-network
+    restart: unless-stopped
+
+networks:
+  vibes-network:
+    driver: bridge
+
+volumes:
+  data:
+    driver: local
