@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.database import async_session, init_db
-from .routers import generation, gpus, iteration, sessions
+from .routers import generation, gpus, iteration, loras, sessions
 from .services.comfyui_client import ComfyUIClientPool
 from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
@@ -81,10 +81,13 @@ async def lifespan(app: FastAPI):
     progress_aggregator = ProgressAggregator(client_pool)
     await progress_aggregator.start_listeners()
 
-    # 7. Start GPU health checks
+    # 7. Start LoRA polling (every 5 minutes)
+    await lora_discovery.start_polling(client_pool, interval=300.0)
+
+    # 8. Start GPU health checks
     health_task = gpu_registry.start_background_health_checks(interval=10.0)
 
-    # 8. Store everything in app.state
+    # 9. Store everything in app.state
     app.state.gpu_registry = gpu_registry
     app.state.client_pool = client_pool
     app.state.workflow_engine = workflow_engine
@@ -107,6 +110,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Shutting down...")
     gpu_registry.stop_health_checks()
+    await lora_discovery.stop_polling()
     await progress_aggregator.stop_listeners()
     await client_pool.close_all()
 
@@ -125,6 +129,7 @@ app.add_middleware(
 app.include_router(sessions.router)
 app.include_router(generation.router)
 app.include_router(iteration.router)
+app.include_router(loras.router)
 app.include_router(gpus.router)
 
 
