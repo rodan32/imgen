@@ -32,9 +32,19 @@ logger = logging.getLogger(__name__)
 # Resolve paths relative to the backend directory
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 PROJECT_DIR = BACKEND_DIR.parent
-CONFIG_PATH = PROJECT_DIR / "config" / "gpus.yaml"
+
+# When running in Docker, use absolute paths for mounted volumes
+# When running locally, use relative paths
+if Path("/app/config/gpus.yaml").exists():
+    # Running in Docker
+    CONFIG_PATH = Path("/app/config/gpus.yaml")
+    DATA_DIR = Path("/app/data")
+else:
+    # Running locally
+    CONFIG_PATH = PROJECT_DIR / "config" / "gpus.yaml"
+    DATA_DIR = PROJECT_DIR / "data"
+
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates" / "workflows"
-DATA_DIR = PROJECT_DIR / "data"
 
 
 @asynccontextmanager
