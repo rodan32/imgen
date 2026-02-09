@@ -21,10 +21,18 @@ export function DraftGridFlow() {
   const advanceIteration = useSessionStore((s) => s.advanceIteration);
 
   const activeBatch = useGenerationStore((s) => s.activeBatch);
-  const getStageGenerations = useGenerationStore((s) => s.getStageGenerations);
-  const getSelectedIds = useGenerationStore((s) => s.getSelectedIds);
+  const allGenerations = useGenerationStore((s) => s.generations);
   const clearSelections = useGenerationStore((s) => s.clearSelections);
   const setBatch = useGenerationStore((s) => s.setBatch);
+
+  // Derive stage generations and selected IDs from store
+  const stageGens = Object.values(allGenerations)
+    .filter((g) => g.stage === iterationRound)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  const selectedIds = Object.values(allGenerations)
+    .filter((g) => g.selected)
+    .map((g) => g.id);
 
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
@@ -33,9 +41,14 @@ export function DraftGridFlow() {
   // WebSocket connection
   useWebSocket(session?.id ?? null);
 
-  const stageGens = getStageGenerations(iterationRound);
-  const selectedIds = getSelectedIds();
   const currentStageConfig = STAGE_CONFIG[Math.min(iterationRound, STAGE_CONFIG.length - 1)];
+
+  console.log("DraftGridFlow render:", {
+    iterationRound,
+    stageGensCount: stageGens.length,
+    selectedIdsCount: selectedIds.length,
+    allGenerations: Object.keys(useGenerationStore.getState().generations).length,
+  });
 
   const handleGenerate = useCallback(async () => {
     if (!session || !prompt.trim()) return;

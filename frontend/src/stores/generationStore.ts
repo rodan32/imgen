@@ -36,9 +36,21 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   activeProgress: {},
 
   addGeneration: (gen) =>
-    set((s) => ({
-      generations: { ...s.generations, [gen.id]: gen },
-    })),
+    set((s) => {
+      // If generation already exists, preserve user state (selected/rejected)
+      const existing = s.generations[gen.id];
+      if (existing) {
+        return {
+          generations: {
+            ...s.generations,
+            [gen.id]: { ...gen, selected: existing.selected, rejected: existing.rejected },
+          },
+        };
+      }
+      return {
+        generations: { ...s.generations, [gen.id]: gen },
+      };
+    }),
 
   addGenerationFromServer: (raw) =>
     set((s) => ({
@@ -80,11 +92,14 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
   toggleSelect: (genId) =>
     set((s) => {
       const gen = s.generations[genId];
+      console.log("toggleSelect:", genId, "exists:", !!gen, "current selected:", gen?.selected);
       if (!gen) return s;
+      const updated = { ...gen, selected: !gen.selected, rejected: false };
+      console.log("toggleSelect: new selected state:", updated.selected);
       return {
         generations: {
           ...s.generations,
-          [genId]: { ...gen, selected: !gen.selected, rejected: false },
+          [genId]: updated,
         },
       };
     }),

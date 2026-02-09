@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.database import get_session
-from ..models.orm import SessionORM
+from ..models.orm import GenerationORM, SessionORM
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +80,26 @@ async def submit_feedback(
         session.current_stage,
     )
 
-    # Stub response - just echo back basic parameters
+    # Get the original prompt from the most recent generation in the previous stage
+    # This is a temporary solution until we implement LLM prompt refinement
+    result = await db.execute(
+        select(GenerationORM)
+        .where(
+            GenerationORM.session_id == req.session_id,
+            GenerationORM.stage == session.current_stage - 1
+        )
+        .order_by(GenerationORM.created_at.desc())
+        .limit(1)
+    )
+    last_gen = result.scalar_one_or_none()
+    original_prompt = last_gen.prompt if last_gen else ""
+    original_negative = last_gen.negative_prompt if last_gen else ""
+
+    # Stub response - echo back the original prompt
     # TODO: implement LLM prompt refinement based on selected images
     return FeedbackResponse(
-        suggested_prompt="",  # Frontend will provide this
-        suggested_negative="",
+        suggested_prompt=original_prompt,
+        suggested_negative=original_negative,
         suggested_parameters={},
         task_type="standard",
         model_family="sdxl",
@@ -92,7 +107,7 @@ async def submit_feedback(
         source_image_id=None,
         denoise_strength=0.75,
         count=8,
-        rationale="User selected images, advancing to next stage",
+        rationale="User selected images, advancing to next stage with same prompt",
     )
 
 

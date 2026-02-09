@@ -17,18 +17,28 @@ export function ImageCard({ generation, size = "md", showInfo = false }: ImageCa
   const toggleSelect = useGenerationStore((s) => s.toggleSelect);
   const progress = useGenerationStore((s) => s.activeProgress[generation.id]);
 
+  // Subscribe to this specific generation's state from the store
+  const storeGeneration = useGenerationStore((s) => s.generations[generation.id]);
+  const selected = storeGeneration?.selected ?? generation.selected;
+  const rejected = storeGeneration?.rejected ?? generation.rejected;
+
   const isLoading = !!progress;
-  const borderColor = generation.selected
+  const borderColor = selected
     ? "border-accent"
-    : generation.rejected
+    : rejected
       ? "border-danger/50"
       : "border-surface-3";
+
+  const handleClick = () => {
+    console.log("ImageCard clicked:", generation.id, "current selected:", selected);
+    toggleSelect(generation.id);
+  };
 
   return (
     <div
       className={`relative rounded-lg overflow-hidden border-2 cursor-pointer
         transition-all hover:border-accent/50 ${borderColor} ${sizeClasses[size]}`}
-      onClick={() => toggleSelect(generation.id)}
+      onClick={handleClick}
     >
       {isLoading ? (
         <div className="w-full h-full flex flex-col items-center justify-center bg-surface-2">
@@ -52,7 +62,7 @@ export function ImageCard({ generation, size = "md", showInfo = false }: ImageCa
       )}
 
       {/* Selection indicator */}
-      {generation.selected && (
+      {selected && (
         <div className="absolute top-1 right-1 w-6 h-6 bg-accent rounded-full flex items-center justify-center">
           <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

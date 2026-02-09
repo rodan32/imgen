@@ -8,6 +8,8 @@ interface ImageGridProps {
 }
 
 export function ImageGrid({ generations, size = "md", showInfo = false }: ImageGridProps) {
+  console.log("ImageGrid render:", generations.length, "generations");
+
   if (generations.length === 0) {
     return (
       <div className="flex items-center justify-center h-48 text-gray-500">
@@ -18,9 +20,10 @@ export function ImageGrid({ generations, size = "md", showInfo = false }: ImageG
 
   return (
     <div className="flex flex-wrap gap-3">
-      {generations.map((gen) => (
-        <ImageCard key={gen.id} generation={gen} size={size} showInfo={showInfo} />
-      ))}
+      {generations.map((gen) => {
+        console.log("Rendering ImageCard:", gen.id, "selected:", gen.selected);
+        return <ImageCard key={gen.id} generation={gen} size={size} showInfo={showInfo} />;
+      })}
     </div>
   );
 }
