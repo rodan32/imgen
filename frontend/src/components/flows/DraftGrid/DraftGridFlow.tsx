@@ -38,6 +38,7 @@ export function DraftGridFlow() {
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("square");
 
   // WebSocket connection
   useWebSocket(session?.id ?? null);
@@ -58,14 +59,27 @@ export function DraftGridFlow() {
 
     try {
       const config = currentStageConfig;
+      // Get dimensions based on aspect ratio
+      const baseSize = config.model === "sd15" ? 512 : 1024;
+      let dimensions = { width: baseSize, height: baseSize };
+      if (aspectRatio === "portrait") {
+        dimensions = config.model === "sd15"
+          ? { width: 512, height: 768 }   // 2:3 ratio
+          : { width: 832, height: 1216 }; // SDXL 2:3
+      } else if (aspectRatio === "landscape") {
+        dimensions = config.model === "sd15"
+          ? { width: 768, height: 512 }   // 3:2 ratio
+          : { width: 1216, height: 832 }; // SDXL 3:2
+      }
+
       const resp = await api.generateBatch({
         session_id: session.id,
         prompt: prompt.trim(),
         negative_prompt: negativePrompt.trim(),
         model_family: config.model,
         task_type: config.task,
-        width: config.width,
-        height: config.height,
+        width: dimensions.width,
+        height: dimensions.height,
         steps: config.steps,
         count: config.count,
         checkpoint: config.model === "sd15" ? "beenyouLite_l15.safetensors" : "epicrealismXL_pureFix.safetensors",
@@ -76,7 +90,7 @@ export function DraftGridFlow() {
     } finally {
       setIsGenerating(false);
     }
-  }, [session, prompt, negativePrompt, currentStageConfig, setStage, setBatch]);
+  }, [session, prompt, negativePrompt, currentStageConfig, aspectRatio, setStage, setBatch]);
 
   const handleAdvance = useCallback(async () => {
     if (!session || selectedIds.length === 0) return;
@@ -210,6 +224,53 @@ export function DraftGridFlow() {
           <div className="flex-1">
             <PromptEditor value={prompt} onChange={setPrompt} />
           </div>
+
+          {/* Aspect ratio selector */}
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-gray-400">Aspect</span>
+            <div className="flex gap-1 bg-surface-2 rounded-lg p-1">
+              <button
+                onClick={() => setAspectRatio("square")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  aspectRatio === "square"
+                    ? "bg-accent text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+                title="Square (1:1)"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setAspectRatio("portrait")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  aspectRatio === "portrait"
+                    ? "bg-accent text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+                title="Portrait (2:3)"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="8" y="4" width="8" height="16" rx="1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setAspectRatio("landscape")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  aspectRatio === "landscape"
+                    ? "bg-accent text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+                title="Landscape (3:2)"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="4" y="8" width="16" height="8" rx="1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <button
             onClick={handleGenerate}
             disabled={isGenerating || !prompt.trim()}
