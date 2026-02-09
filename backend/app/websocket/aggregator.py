@@ -77,10 +77,15 @@ class ProgressAggregator:
 
                     async for raw_msg in ws:
                         try:
-                            msg = json.loads(raw_msg)
+                            # Handle both string and bytes messages
+                            if isinstance(raw_msg, bytes):
+                                msg_str = raw_msg.decode('utf-8')
+                            else:
+                                msg_str = raw_msg
+                            msg = json.loads(msg_str)
                             await self._handle_comfyui_message(gpu_id, msg)
-                        except json.JSONDecodeError:
-                            pass  # binary preview frames, ignore
+                        except (json.JSONDecodeError, UnicodeDecodeError):
+                            pass  # binary preview frames or malformed data, ignore
 
             except ConnectionClosedError:
                 logger.warning("ComfyUI WS disconnected for %s, reconnecting in %.0fs", gpu_id, backoff)
