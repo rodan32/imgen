@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.database import async_session, init_db
-from .routers import generation, gpus, sessions
+from .routers import generation, gpus, iteration, sessions
 from .services.comfyui_client import ComfyUIClientPool
 from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
@@ -118,6 +118,7 @@ app.add_middleware(
 # Include routers
 app.include_router(sessions.router)
 app.include_router(generation.router)
+app.include_router(iteration.router)
 app.include_router(gpus.router)
 
 

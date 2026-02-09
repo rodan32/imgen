@@ -409,6 +409,7 @@ async def _run_generation(
             "seed": gen.seed if gen else 0,
             "generationTimeMs": elapsed_ms,
             "gpuId": gpu_id,
+            "stage": gen.stage if gen else 0,
         }
 
         if batch_id is not None:
@@ -433,6 +434,7 @@ async def _run_generation(
                     "imageUrl": f"/api/generate/{generation_id}/image",
                     "thumbnailUrl": f"/api/generate/{generation_id}/thumbnail",
                     "index": batch_index or 0,
+                    "stage": gen.stage if gen else 0,
                 },
             }
 

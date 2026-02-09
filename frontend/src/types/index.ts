@@ -99,6 +99,7 @@ export interface GenerationCompleteMessage {
   seed: number;
   generationTimeMs: number;
   gpuId: string;
+  stage: number;
 }
 
 export interface BatchProgressMessage {
@@ -111,6 +112,7 @@ export interface BatchProgressMessage {
     imageUrl: string;
     thumbnailUrl: string;
     index: number;
+    stage: number;
   };
 }
 

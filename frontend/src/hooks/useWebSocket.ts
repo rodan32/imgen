@@ -63,7 +63,7 @@ export function useWebSocket(sessionId: string | null) {
           s.addGeneration({
             id: msg.generationId,
             sessionId: sessionId!,
-            stage: 0, // will be updated when we fetch full details
+            stage: msg.stage,
             prompt: "",
             negativePrompt: "",
             imageUrl: msg.imageUrl,
@@ -81,10 +81,14 @@ export function useWebSocket(sessionId: string | null) {
         case "batch_progress":
           s.incrementBatchCompleted();
           if (msg.latestResult) {
+            const genId = msg.latestResult.generationId;
+            console.log("batch_progress: adding generation", genId, msg.latestResult);
+            // Clear progress so the image is no longer in loading state
+            s.clearProgress(genId);
             s.addGeneration({
-              id: msg.latestResult.generationId,
+              id: genId,
               sessionId: sessionId!,
-              stage: 0,
+              stage: msg.latestResult.stage,
               prompt: "",
               negativePrompt: "",
               imageUrl: msg.latestResult.imageUrl,
