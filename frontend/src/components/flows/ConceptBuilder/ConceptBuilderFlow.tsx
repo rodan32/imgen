@@ -45,13 +45,15 @@ export function ConceptBuilderFlow() {
   const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("portrait");
   const [references, setReferences] = useState<ReferenceImage[]>([]);
   const [activeTab, setActiveTab] = useState<"concept" | "references">("concept");
+  const [rejectedAll, setRejectedAll] = useState(false);
 
   // WebSocket connection
   useWebSocket(session?.id ?? null);
 
   // Derive stage generations and selected IDs
+  // Filter out rejected images so they disappear from view
   const stageGens = Object.values(allGenerations)
-    .filter((g) => g.stage === iterationRound)
+    .filter((g) => g.stage === iterationRound && !g.rejected)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const selectedIds = Object.values(allGenerations)
@@ -78,6 +80,7 @@ export function ConceptBuilderFlow() {
 
     setIsGenerating(true);
     setStage("generating");
+    setRejectedAll(false); // Clear rejection state when starting new generation
 
     try {
       // For concept builder, we use quality settings from the start
@@ -204,6 +207,7 @@ export function ConceptBuilderFlow() {
         feedback_text: feedbackText,
       });
       console.log("Reject all recorded");
+      setRejectedAll(true); // Show helpful empty state
     } catch (e) {
       console.error("Reject all failed:", e);
     }
@@ -391,6 +395,22 @@ export function ConceptBuilderFlow() {
                   generations={stageGens}
                   size="md"
                   showInfo={false}
+                  emptyMessage={
+                    rejectedAll
+                      ? "All variations rejected. Your feedback has been recorded to improve future generations."
+                      : "No variations yet"
+                  }
+                  emptyAction={
+                    rejectedAll
+                      ? {
+                          label: "Generate New Variations",
+                          onClick: () => {
+                            setRejectedAll(false);
+                            handleGenerate();
+                          },
+                        }
+                      : undefined
+                  }
                 />
               </div>
 

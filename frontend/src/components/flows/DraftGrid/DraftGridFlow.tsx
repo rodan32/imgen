@@ -29,8 +29,9 @@ export function DraftGridFlow() {
   const setBatch = useGenerationStore((s) => s.setBatch);
 
   // Derive stage generations and selected IDs from store
+  // Filter out rejected images so they disappear from view
   const stageGens = Object.values(allGenerations)
-    .filter((g) => g.stage === iterationRound)
+    .filter((g) => g.stage === iterationRound && !g.rejected)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   const selectedIds = Object.values(allGenerations)
@@ -51,6 +52,9 @@ export function DraftGridFlow() {
     rationale: string;
   } | null>(null);
 
+  // Track if user rejected all images (to show helpful message)
+  const [rejectedAll, setRejectedAll] = useState(false);
+
   // WebSocket connection
   useWebSocket(session?.id ?? null);
 
@@ -67,6 +71,7 @@ export function DraftGridFlow() {
     if (!session || !prompt.trim()) return;
     setIsGenerating(true);
     setStage("generating");
+    setRejectedAll(false); // Clear rejection state when starting new generation
 
     try {
       const config = currentStageConfig;
@@ -206,6 +211,7 @@ export function DraftGridFlow() {
         rejected_image_ids: rejectedIds,
       });
       console.log("Rejection recorded for checkpoint/LoRA learning");
+      setRejectedAll(true); // Show helpful empty state
     } catch (e) {
       console.error("Failed to record rejection:", e);
     }
@@ -215,8 +221,8 @@ export function DraftGridFlow() {
       // Go back to previous stage to try again
       goToStage(iterationRound - 1);
     } else {
-      // At first stage, could regenerate with different settings
-      // For now, user can manually adjust and regenerate
+      // At first stage, show message prompting regeneration
+      // User can adjust prompt/settings and regenerate
       console.log("Reject all at stage 0 - adjust settings and regenerate");
     }
   }, [session, iterationRound, stageGens, rejectAllInStage, goToStage]);
@@ -402,6 +408,22 @@ export function DraftGridFlow() {
           generations={stageGens}
           size={currentStageConfig.size}
           showInfo={iterationRound > 0}
+          emptyMessage={
+            rejectedAll
+              ? "All images rejected. Your feedback has been recorded to improve future generations."
+              : "No images yet"
+          }
+          emptyAction={
+            rejectedAll
+              ? {
+                  label: "Generate New Batch",
+                  onClick: () => {
+                    setRejectedAll(false);
+                    handleGenerate();
+                  },
+                }
+              : undefined
+          }
         />
       </div>
 
