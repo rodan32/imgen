@@ -168,6 +168,7 @@ async def generate_batch(
     task_router = request.app.state.task_router
     lora_discovery = request.app.state.lora_discovery
     checkpoint_learning = request.app.state.checkpoint_learning
+    preference_learning = request.app.state.preference_learning
     task_type = TaskType(req.task_type.value)
 
     # Auto-LoRA: Discover relevant LoRAs if enabled and no LoRAs specified
@@ -183,14 +184,49 @@ async def generate_batch(
                 [l["name"] for l in discovered_loras]
             )
 
-    # Explore Mode: Get multiple checkpoints to test
+    # Checkpoint Selection: Context-aware via PreferenceLearning
     checkpoints_to_test = []
     if req.explore_mode and not req.checkpoint:
+        # Get available checkpoints for this tier
         tier = req.task_type.value
-        checkpoints_to_test = checkpoint_learning.get_checkpoints_for_tier(
-            req.model_family.value, tier, explore_mode=True
-        )
-        logger.info("Explore mode: testing %d checkpoints: %s", len(checkpoints_to_test), checkpoints_to_test)
+        pool_key = f"{req.model_family.value}_{tier}"
+        available_checkpoints = checkpoint_learning.checkpoint_pools.get(pool_key, [])
+
+        if not available_checkpoints:
+            # Fallback to default
+            default = "beenyouLite_l15.safetensors" if req.model_family.value == "sd15" else "epicrealismXL_pureFix.safetensors"
+            checkpoints_to_test = [default]
+            logger.info("No checkpoint pool for %s, using default: %s", pool_key, default)
+        else:
+            # Use PreferenceLearning to recommend best checkpoint for this prompt
+            recommended_checkpoint, confidence = await preference_learning.recommend_checkpoint(
+                db=db,
+                prompt=req.prompt,
+                available_checkpoints=available_checkpoints,
+            )
+
+            logger.info(
+                "Context-aware checkpoint recommendation: %s (confidence: %.2f) for prompt: %s",
+                recommended_checkpoint, confidence, req.prompt[:60]
+            )
+
+            if confidence > 0.5 and tier != "draft":
+                # High confidence + not draft stage: exploit best checkpoint
+                checkpoints_to_test = [recommended_checkpoint]
+                logger.info("High confidence (%.2f), using single checkpoint: %s", confidence, recommended_checkpoint)
+            elif confidence > 0.3:
+                # Medium confidence: exploit best + explore 1 backup
+                checkpoints_to_test = [recommended_checkpoint]
+                # Add a second checkpoint for exploration
+                for ckpt in available_checkpoints:
+                    if ckpt != recommended_checkpoint:
+                        checkpoints_to_test.append(ckpt)
+                        break
+                logger.info("Medium confidence (%.2f), testing top 2: %s", confidence, checkpoints_to_test)
+            else:
+                # Low confidence: explore multiple checkpoints (original behavior)
+                checkpoints_to_test = available_checkpoints[:3]
+                logger.info("Low confidence (%.2f), exploring %d checkpoints: %s", confidence, len(checkpoints_to_test), checkpoints_to_test)
     else:
         # Use single checkpoint (specified or default)
         checkpoints_to_test = [req.checkpoint] if req.checkpoint else [None]
