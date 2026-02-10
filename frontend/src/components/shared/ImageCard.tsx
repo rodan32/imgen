@@ -7,11 +7,32 @@ interface ImageCardProps {
   showInfo?: boolean;
 }
 
-const sizeClasses = {
-  sm: "w-32 h-32",
-  md: "w-48 h-48",
-  lg: "w-72 h-72",
+// Base widths for each size - height will be calculated from aspect ratio
+const sizeWidths = {
+  sm: 128,  // w-32
+  md: 192,  // w-48
+  lg: 288,  // w-72
 };
+
+function getImageDimensions(generation: GenerationResult, size: "sm" | "md" | "lg") {
+  const baseWidth = sizeWidths[size];
+
+  // Try to get actual aspect ratio from generation parameters
+  const params = generation.parameters as any;
+  const width = params?.width || 512;
+  const height = params?.height || 512;
+  const aspectRatio = width / height;
+
+  // Calculate actual dimensions
+  const cardWidth = baseWidth;
+  const cardHeight = Math.round(baseWidth / aspectRatio);
+
+  return {
+    width: cardWidth,
+    height: cardHeight,
+    aspectRatio,
+  };
+}
 
 export function ImageCard({ generation, size = "md", showInfo = false }: ImageCardProps) {
   const toggleSelect = useGenerationStore((s) => s.toggleSelect);
@@ -34,10 +55,13 @@ export function ImageCard({ generation, size = "md", showInfo = false }: ImageCa
     toggleSelect(generation.id);
   };
 
+  const dimensions = getImageDimensions(generation, size);
+
   return (
     <div
       className={`relative rounded-lg overflow-hidden border-2 cursor-pointer
-        transition-all hover:border-accent/50 ${borderColor} ${sizeClasses[size]}`}
+        transition-all hover:border-accent/50 ${borderColor}`}
+      style={{ width: `${dimensions.width}px`, height: `${dimensions.height}px` }}
       onClick={handleClick}
     >
       {isLoading ? (

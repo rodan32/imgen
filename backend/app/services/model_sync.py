@@ -58,6 +58,7 @@ class ModelSyncManager:
         self.nas_controlnets: Dict[str, ModelInfo] = {}
         self.nas_embeddings: Dict[str, ModelInfo] = {}  # Textual Inversions
         self.nas_ipadapters: Dict[str, ModelInfo] = {}
+        self.nas_clip_vision: Dict[str, ModelInfo] = {}  # CLIP vision encoders (required for IP-Adapter)
         self.nas_upscalers: Dict[str, ModelInfo] = {}
         self.nas_vae: Dict[str, ModelInfo] = {}
 
@@ -144,6 +145,10 @@ class ModelSyncManager:
             vae_node = object_info.get("VAELoader", {})
             vae_list = vae_node.get("input", {}).get("vae_name", [[]])[0] if vae_node else []
 
+            # Extract CLIP Vision (required for IP-Adapter)
+            clip_vision_node = object_info.get("CLIPVisionLoader", {})
+            clip_vision_list = clip_vision_node.get("input", {}).get("clip_name", [[]])[0] if clip_vision_node else []
+
             # Classify by family (SD1.5 vs SDXL)
             for ckpt_name in ckpt_list:
                 family = self._classify_model_family(ckpt_name)
@@ -204,13 +209,24 @@ class ModelSyncManager:
                     family=family,
                 )
 
+            for clip_vision_name in clip_vision_list:
+                # CLIP vision models are universal (work with both SD1.5 and SDXL)
+                self.nas_clip_vision[clip_vision_name] = ModelInfo(
+                    name=clip_vision_name,
+                    path=f"clip_vision/{clip_vision_name}",
+                    size_mb=0,
+                    model_type="clip_vision",
+                    family="universal",  # Works with all IP-Adapters
+                )
+
             logger.info(
                 "Discovered models on NAS: %d checkpoints, %d LoRAs, %d ControlNets, "
-                "%d IP-Adapters, %d Upscalers, %d VAE",
+                "%d IP-Adapters, %d CLIP Vision, %d Upscalers, %d VAE",
                 len(self.nas_checkpoints),
                 len(self.nas_loras),
                 len(self.nas_controlnets),
                 len(self.nas_ipadapters),
+                len(self.nas_clip_vision),
                 len(self.nas_upscalers),
                 len(self.nas_vae),
             )
@@ -220,6 +236,7 @@ class ModelSyncManager:
                 "loras": len(self.nas_loras),
                 "controlnets": len(self.nas_controlnets),
                 "ipadapters": len(self.nas_ipadapters),
+                "clip_vision": len(self.nas_clip_vision),
                 "upscalers": len(self.nas_upscalers),
                 "vae": len(self.nas_vae),
             }

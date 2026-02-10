@@ -4,6 +4,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { GPUStatusBar } from "@/components/shared/GPUStatusBar";
 import { FlowSelector } from "@/components/flows/FlowSelector";
 import { DraftGridFlow } from "@/components/flows/DraftGrid/DraftGridFlow";
+import { ConceptBuilderFlow } from "@/components/flows/ConceptBuilder/ConceptBuilderFlow";
 import type { FlowType } from "@/types";
 
 export default function App() {
@@ -53,9 +54,7 @@ export default function App() {
         ) : session.flowType === "draft_grid" ? (
           <DraftGridFlow />
         ) : session.flowType === "concept_builder" ? (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            Concept Builder — coming soon
-          </div>
+          <ConceptBuilderFlow />
         ) : session.flowType === "explorer" ? (
           <div className="flex items-center justify-center h-full text-gray-500">
             Concept Explorer — coming soon

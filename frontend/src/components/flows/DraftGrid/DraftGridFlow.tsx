@@ -5,6 +5,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { PromptEditor, NegativePromptEditor } from "@/components/shared/PromptEditor";
 import { ImageGrid } from "@/components/shared/ImageGrid";
 import { FeedbackBar } from "@/components/shared/FeedbackBar";
+import { PromptChangeNotification } from "@/components/shared/PromptChangeNotification";
 import * as api from "@/api/client";
 
 const STAGE_CONFIG = [
@@ -42,6 +43,13 @@ export function DraftGridFlow() {
   const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("portrait");
   const [exploreMode, setExploreMode] = useState(true);  // Default ON for draft stage
   const [autoLora, setAutoLora] = useState(false);
+
+  // Prompt change notification state
+  const [promptChange, setPromptChange] = useState<{
+    oldPrompt: string;
+    newPrompt: string;
+    rationale: string;
+  } | null>(null);
 
   // WebSocket connection
   useWebSocket(session?.id ?? null);
@@ -107,6 +115,15 @@ export function DraftGridFlow() {
         action: "select",
       });
 
+      // Show what changed
+      if (resp.suggested_prompt !== prompt || resp.suggested_negative !== negativePrompt) {
+        setPromptChange({
+          oldPrompt: prompt,
+          newPrompt: resp.suggested_prompt,
+          rationale: resp.rationale || "Refined based on your selections",
+        });
+      }
+
       // Update prompt with suggestion
       setPrompt(resp.suggested_prompt);
       if (resp.suggested_negative) setNegativePrompt(resp.suggested_negative);
@@ -155,6 +172,16 @@ export function DraftGridFlow() {
         feedback_text: feedback,
         reference_image_ids: selectedIds,
       });
+
+      // Show what changed
+      if (resp.refined_prompt !== prompt) {
+        setPromptChange({
+          oldPrompt: prompt,
+          newPrompt: resp.refined_prompt,
+          rationale: resp.rationale || `Applied your feedback: "${feedback}"`,
+        });
+      }
+
       setPrompt(resp.refined_prompt);
     } catch (e) {
       console.error("Refine failed:", e);
@@ -393,6 +420,16 @@ export function DraftGridFlow() {
               ? `Advance to ${STAGE_CONFIG[iterationRound + 1].label}`
               : "Finalize"
           }
+        />
+      )}
+
+      {/* Prompt change notification */}
+      {promptChange && (
+        <PromptChangeNotification
+          oldPrompt={promptChange.oldPrompt}
+          newPrompt={promptChange.newPrompt}
+          rationale={promptChange.rationale}
+          onDismiss={() => setPromptChange(null)}
         />
       )}
     </div>
