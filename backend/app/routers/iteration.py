@@ -260,12 +260,12 @@ async def reject_all(
             {k: v for k, v in checkpoints_used.items()},
         )
 
-        # Feed this back into CheckpointLearning to penalize these checkpoints
-        checkpoint_learning = app.state.checkpoint_learning
+        # Record rejections with full prompt context via PreferenceLearning
+        # This is context-aware: tracks (prompt keywords + checkpoint) combinations
+        # instead of globally penalizing checkpoints across all prompts.
+        # A checkpoint might be bad for "anime" but great for "photorealistic",
+        # so we need to track rejections in context.
         preference_learning = app.state.preference_learning
-
-        for checkpoint, count in checkpoints_used.items():
-            checkpoint_learning.record_rejection(checkpoint, count)
 
         # Record each rejection for preference learning
         for gen in rejected_gens:
