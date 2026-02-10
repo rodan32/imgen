@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.database import async_session, init_db
-from .routers import checkpoints, generation, gpus, iteration, loras, sessions
+from .routers import checkpoints, generation, gpus, iteration, loras, preferences, sessions
 from .services.comfyui_client import ComfyUIClientPool
 from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
@@ -24,6 +24,7 @@ from .services.workflow_engine import WorkflowEngine
 from .services.lora_discovery import LoRADiscovery
 from .services.checkpoint_learning import CheckpointLearning
 from .services.vision_analysis import VisionAnalysis
+from .services.preference_learning import PreferenceLearning
 from .websocket.aggregator import ProgressAggregator
 
 logging.basicConfig(
@@ -77,13 +78,14 @@ async def lifespan(app: FastAPI):
     image_store = ImageStore(DATA_DIR)
     lora_discovery = LoRADiscovery()
     checkpoint_learning = CheckpointLearning()
-    vision_analysis = VisionAnalysis()
+    preference_learning = PreferenceLearning()
+    vision_analysis = VisionAnalysis(ollama_url="http://192.168.0.40:11434")
 
     # 5a. Check if Ollama is available (optional, disabled by default)
     ollama_available = await vision_analysis.check_availability()
     if ollama_available:
-        logger.info("Ollama vision available - enable with ENABLE_VISION=true")
-        # vision_analysis.enabled = True  # Uncomment to enable
+        logger.info("Ollama vision available at 192.168.0.40:11434")
+        vision_analysis.enabled = True  # Enable vision analysis
     else:
         logger.info("Ollama vision not available - vision analysis disabled")
 
@@ -106,6 +108,7 @@ async def lifespan(app: FastAPI):
     app.state.progress_aggregator = progress_aggregator
     app.state.lora_discovery = lora_discovery
     app.state.checkpoint_learning = checkpoint_learning
+    app.state.preference_learning = preference_learning
     app.state.vision_analysis = vision_analysis
     app.state.db_session = async_session  # session factory for background tasks
 
@@ -142,6 +145,7 @@ app.include_router(generation.router)
 app.include_router(iteration.router)
 app.include_router(loras.router)
 app.include_router(checkpoints.router)
+app.include_router(preferences.router)
 app.include_router(gpus.router)
 
 

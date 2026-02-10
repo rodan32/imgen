@@ -95,17 +95,47 @@ async def submit_feedback(
         session.current_stage,
     )
 
-    # EXPERIMENTAL: Vision analysis of selected images (logging only)
+    # Record preferences for selected images
     if req.selected_image_ids:
+        preference_learning = app.state.preference_learning
         vision_analysis = app.state.vision_analysis
-        if vision_analysis.enabled:
-            # Get image paths for selected generations
-            result = await db.execute(
-                select(GenerationORM)
-                .where(GenerationORM.id.in_(req.selected_image_ids))
-            )
-            selected_gens = result.scalars().all()
 
+        # Get selected generations
+        result = await db.execute(
+            select(GenerationORM)
+            .where(GenerationORM.id.in_(req.selected_image_ids))
+        )
+        selected_gens = result.scalars().all()
+
+        # Record each selection for learning
+        for gen in selected_gens:
+            # Extract LoRAs from parameters if available
+            loras = []
+            # TODO: Parse gen.parameters for LoRA info when we start tracking it
+
+            # Record preference
+            await preference_learning.record_preference(
+                db=db,
+                prompt=gen.prompt,
+                checkpoint=gen.checkpoint_name or "unknown",
+                loras=loras,
+                selected=True,
+                rejected=False,
+                model_family=gen.model_family or "sdxl",
+                task_type="standard",  # TODO: get from gen
+                stage=session.current_stage - 1,
+                session_id=req.session_id,
+                generation_id=gen.id,
+                negative_prompt=gen.negative_prompt,
+            )
+
+        logger.info(
+            "Recorded %d selections for preference learning",
+            len(selected_gens)
+        )
+
+        # EXPERIMENTAL: Vision analysis of selected images (logging only)
+        if vision_analysis.enabled:
             image_paths = []
             for gen in selected_gens:
                 # Assume images are stored in data/images/
@@ -231,8 +261,37 @@ async def reject_all(
 
         # Feed this back into CheckpointLearning to penalize these checkpoints
         checkpoint_learning = app.state.checkpoint_learning
+        preference_learning = app.state.preference_learning
+
         for checkpoint, count in checkpoints_used.items():
             checkpoint_learning.record_rejection(checkpoint, count)
+
+        # Record each rejection for preference learning
+        for gen in rejected_gens:
+            # Extract LoRAs from parameters if available
+            loras = []
+            # TODO: Parse gen.parameters for LoRA info
+
+            await preference_learning.record_preference(
+                db=db,
+                prompt=gen.prompt,
+                checkpoint=gen.checkpoint_name or "unknown",
+                loras=loras,
+                selected=False,
+                rejected=True,
+                model_family=gen.model_family or "sdxl",
+                task_type="standard",
+                stage=req.stage,
+                session_id=req.session_id,
+                generation_id=gen.id,
+                feedback_text=req.feedback_text,
+                negative_prompt=gen.negative_prompt,
+            )
+
+        logger.info(
+            "Recorded %d rejections for preference learning",
+            len(rejected_gens)
+        )
 
         # EXPERIMENTAL: Vision analysis of rejected images (logging only)
         vision_analysis = app.state.vision_analysis
