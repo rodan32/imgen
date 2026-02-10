@@ -138,10 +138,11 @@ async def submit_feedback(
         if vision_analysis.enabled:
             image_paths = []
             for gen in selected_gens:
-                # Assume images are stored in data/images/
-                img_path = Path(gen.image_url.replace("/images/", "data/images/"))
-                if img_path.exists():
-                    image_paths.append(img_path)
+                # Use image_path directly from ORM
+                if gen.image_path:
+                    img_path = Path(gen.image_path)
+                    if img_path.exists():
+                        image_paths.append(img_path)
 
             if image_paths:
                 original_prompt = selected_gens[0].prompt if selected_gens else ""
@@ -301,9 +302,11 @@ async def reject_all(
 
             image_paths = []
             for gen in rejected_gens:
-                img_path = Path(gen.image_url.replace("/images/", "data/images/"))
-                if img_path.exists():
-                    image_paths.append(img_path)
+                # Use image_path directly from ORM
+                if gen.image_path:
+                    img_path = Path(gen.image_path)
+                    if img_path.exists():
+                        image_paths.append(img_path)
 
             if image_paths:
                 original_prompt = rejected_gens[0].prompt if rejected_gens else ""
