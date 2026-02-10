@@ -21,6 +21,7 @@ interface GenerationState {
   toggleSelect: (genId: string) => void;
   toggleReject: (genId: string) => void;
   clearSelections: () => void;
+  rejectAllInStage: (stage: number) => void;
   getSelectedIds: () => string[];
   getRejectedIds: () => string[];
   getStageGenerations: (stage: number) => GenerationResult[];
@@ -121,6 +122,19 @@ export const useGenerationStore = create<GenerationState>((set, get) => ({
       const updated: Record<string, GenerationResult> = {};
       for (const [id, gen] of Object.entries(s.generations)) {
         updated[id] = { ...gen, selected: false, rejected: false };
+      }
+      return { generations: updated };
+    }),
+
+  rejectAllInStage: (stage) =>
+    set((s) => {
+      const updated: Record<string, GenerationResult> = {};
+      for (const [id, gen] of Object.entries(s.generations)) {
+        if (gen.stage === stage) {
+          updated[id] = { ...gen, rejected: true, selected: false };
+        } else {
+          updated[id] = gen;
+        }
       }
       return { generations: updated };
     }),

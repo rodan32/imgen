@@ -24,6 +24,7 @@ export function DraftGridFlow() {
   const activeBatch = useGenerationStore((s) => s.activeBatch);
   const allGenerations = useGenerationStore((s) => s.generations);
   const clearSelections = useGenerationStore((s) => s.clearSelections);
+  const rejectAllInStage = useGenerationStore((s) => s.rejectAllInStage);
   const setBatch = useGenerationStore((s) => s.setBatch);
 
   // Derive stage generations and selected IDs from store
@@ -38,7 +39,7 @@ export function DraftGridFlow() {
   const [prompt, setPrompt] = useState("");
   const [negativePrompt, setNegativePrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("square");
+  const [aspectRatio, setAspectRatio] = useState<"square" | "portrait" | "landscape">("portrait");
   const [exploreMode, setExploreMode] = useState(true);  // Default ON for draft stage
   const [autoLora, setAutoLora] = useState(false);
 
@@ -160,6 +161,39 @@ export function DraftGridFlow() {
     }
   }, [session, prompt, selectedIds]);
 
+  const handleRejectAll = useCallback(async (feedback?: string) => {
+    if (!session) return;
+
+    // Mark all current stage images as rejected in the store
+    rejectAllInStage(iterationRound);
+
+    // Get IDs of rejected images
+    const rejectedIds = stageGens.map((g) => g.id);
+
+    // Send rejection feedback to backend for learning
+    try {
+      await api.rejectAll({
+        session_id: session.id,
+        stage: iterationRound,
+        feedback_text: feedback,
+        rejected_image_ids: rejectedIds,
+      });
+      console.log("Rejection recorded for checkpoint/LoRA learning");
+    } catch (e) {
+      console.error("Failed to record rejection:", e);
+    }
+
+    // Navigation behavior
+    if (iterationRound > 0) {
+      // Go back to previous stage to try again
+      goToStage(iterationRound - 1);
+    } else {
+      // At first stage, could regenerate with different settings
+      // For now, user can manually adjust and regenerate
+      console.log("Reject all at stage 0 - adjust settings and regenerate");
+    }
+  }, [session, iterationRound, stageGens, rejectAllInStage, goToStage]);
+
   // Keyboard navigation: Alt+Left/Right to navigate stages
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -234,19 +268,6 @@ export function DraftGridFlow() {
             <span className="text-xs text-gray-400">Aspect</span>
             <div className="flex gap-1 bg-surface-2 rounded-lg p-1">
               <button
-                onClick={() => setAspectRatio("square")}
-                className={`px-3 py-1.5 text-xs rounded transition-colors ${
-                  aspectRatio === "square"
-                    ? "bg-accent text-white"
-                    : "text-gray-400 hover:text-gray-200"
-                }`}
-                title="Square (1:1)"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="6" width="12" height="12" rx="1" />
-                </svg>
-              </button>
-              <button
                 onClick={() => setAspectRatio("portrait")}
                 className={`px-3 py-1.5 text-xs rounded transition-colors ${
                   aspectRatio === "portrait"
@@ -270,6 +291,19 @@ export function DraftGridFlow() {
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <rect x="4" y="8" width="16" height="8" rx="1" />
+                </svg>
+              </button>
+              <button
+                onClick={() => setAspectRatio("square")}
+                className={`px-3 py-1.5 text-xs rounded transition-colors ${
+                  aspectRatio === "square"
+                    ? "bg-accent text-white"
+                    : "text-gray-400 hover:text-gray-200"
+                }`}
+                title="Square (1:1)"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <rect x="6" y="6" width="12" height="12" rx="1" />
                 </svg>
               </button>
             </div>
@@ -348,10 +382,12 @@ export function DraftGridFlow() {
       {stageGens.length > 0 && (
         <FeedbackBar
           selectedCount={selectedIds.length}
+          totalCount={stageGens.length}
           onMoreLikeThis={handleMoreLikeThis}
           onRefine={handleRefine}
           onAdvance={handleAdvance}
           onClearSelection={clearSelections}
+          onRejectAll={handleRejectAll}
           advanceLabel={
             iterationRound < STAGE_CONFIG.length - 1
               ? `Advance to ${STAGE_CONFIG[iterationRound + 1].label}`

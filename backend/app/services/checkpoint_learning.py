@@ -96,6 +96,24 @@ class CheckpointLearning:
             (stats["selected"] / stats["total"]) * 100 if stats["total"] > 0 else 0
         )
 
+    def record_rejection(self, checkpoint: str, count: int = 1):
+        """
+        Record rejections for a checkpoint.
+
+        When all images in a batch are rejected, this signals the checkpoint
+        may not be suitable for that prompt/style.
+        """
+        stats = self.checkpoint_stats[checkpoint]
+        stats["total"] += count
+        # Rejections don't increment selected, lowering the selection rate
+
+        logger.info(
+            "Checkpoint %s rejected %d times, selection rate: %.1f%%",
+            checkpoint,
+            count,
+            (stats["selected"] / stats["total"]) * 100 if stats["total"] > 0 else 0
+        )
+
     def get_stats_summary(self) -> Dict[str, Dict[str, any]]:
         """Get summary of checkpoint performance."""
         summary = {}

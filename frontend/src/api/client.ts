@@ -147,6 +147,16 @@ export async function refinePrompt(params: {
   );
 }
 
+export async function rejectAll(params: {
+  session_id: string; stage: number; feedback_text?: string;
+  rejected_image_ids: string[];
+}) {
+  return request<{ recorded: boolean; rationale: string }>(
+    "/api/iterate/reject-all",
+    { method: "POST", body: JSON.stringify(params) }
+  );
+}
+
 // --- GPUs ---
 
 export async function getGPUs() {

@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.database import async_session, init_db
-from .routers import generation, gpus, iteration, loras, sessions
+from .routers import checkpoints, generation, gpus, iteration, loras, sessions
 from .services.comfyui_client import ComfyUIClientPool
 from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
@@ -23,6 +23,7 @@ from .services.task_router import TaskRouter
 from .services.workflow_engine import WorkflowEngine
 from .services.lora_discovery import LoRADiscovery
 from .services.checkpoint_learning import CheckpointLearning
+from .services.vision_analysis import VisionAnalysis
 from .websocket.aggregator import ProgressAggregator
 
 logging.basicConfig(
@@ -76,6 +77,15 @@ async def lifespan(app: FastAPI):
     image_store = ImageStore(DATA_DIR)
     lora_discovery = LoRADiscovery()
     checkpoint_learning = CheckpointLearning()
+    vision_analysis = VisionAnalysis()
+
+    # 5a. Check if Ollama is available (optional, disabled by default)
+    ollama_available = await vision_analysis.check_availability()
+    if ollama_available:
+        logger.info("Ollama vision available - enable with ENABLE_VISION=true")
+        # vision_analysis.enabled = True  # Uncomment to enable
+    else:
+        logger.info("Ollama vision not available - vision analysis disabled")
 
     # 6. Start progress aggregator
     progress_aggregator = ProgressAggregator(client_pool)
@@ -96,6 +106,7 @@ async def lifespan(app: FastAPI):
     app.state.progress_aggregator = progress_aggregator
     app.state.lora_discovery = lora_discovery
     app.state.checkpoint_learning = checkpoint_learning
+    app.state.vision_analysis = vision_analysis
     app.state.db_session = async_session  # session factory for background tasks
 
     # Run initial health check
@@ -130,6 +141,7 @@ app.include_router(sessions.router)
 app.include_router(generation.router)
 app.include_router(iteration.router)
 app.include_router(loras.router)
+app.include_router(checkpoints.router)
 app.include_router(gpus.router)
 
 
