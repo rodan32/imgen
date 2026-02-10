@@ -15,7 +15,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models.database import async_session, init_db
-from .routers import checkpoints, generation, gpus, iteration, loras, preferences, sessions
+from .routers import checkpoints, generation, gpus, iteration, loras, models, preferences, sessions
 from .services.comfyui_client import ComfyUIClientPool
 from .services.gpu_registry import GPURegistry
 from .services.image_store import ImageStore
@@ -25,6 +25,7 @@ from .services.lora_discovery import LoRADiscovery
 from .services.checkpoint_learning import CheckpointLearning
 from .services.vision_analysis import VisionAnalysis
 from .services.preference_learning import PreferenceLearning
+from .services.model_sync import ModelSyncManager
 from .websocket.aggregator import ProgressAggregator
 
 logging.basicConfig(
@@ -79,6 +80,7 @@ async def lifespan(app: FastAPI):
     lora_discovery = LoRADiscovery()
     checkpoint_learning = CheckpointLearning()
     preference_learning = PreferenceLearning()
+    model_sync = ModelSyncManager()
     vision_analysis = VisionAnalysis(ollama_url="http://192.168.0.40:11434")
 
     # 5a. Check if Ollama is available (optional, disabled by default)
@@ -96,6 +98,13 @@ async def lifespan(app: FastAPI):
     # 7. Start LoRA polling (every 5 minutes)
     await lora_discovery.start_polling(client_pool, interval=300.0)
 
+    # 7a. Discover models from NAS (via any healthy node)
+    for node in gpu_registry.nodes:
+        model_sync.register_node(node.id)
+    nas_models = await model_sync.discover_nas_models(client_pool)
+    logger.info("Discovered %d checkpoints and %d LoRAs from NAS",
+               nas_models.get("checkpoints", 0), nas_models.get("loras", 0))
+
     # 8. Start GPU health checks
     health_task = gpu_registry.start_background_health_checks(interval=10.0)
 
@@ -109,6 +118,7 @@ async def lifespan(app: FastAPI):
     app.state.lora_discovery = lora_discovery
     app.state.checkpoint_learning = checkpoint_learning
     app.state.preference_learning = preference_learning
+    app.state.model_sync = model_sync
     app.state.vision_analysis = vision_analysis
     app.state.db_session = async_session  # session factory for background tasks
 
@@ -145,6 +155,7 @@ app.include_router(generation.router)
 app.include_router(iteration.router)
 app.include_router(loras.router)
 app.include_router(checkpoints.router)
+app.include_router(models.router)
 app.include_router(preferences.router)
 app.include_router(gpus.router)
 

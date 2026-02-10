@@ -179,15 +179,20 @@ class ProgressAggregator:
         """Send a message to all frontend WebSockets connected to a session."""
         connections = self.session_connections.get(session_id, [])
         if not connections:
+            logger.warning("No WebSocket connections for session %s", session_id)
             return
 
         payload = json.dumps(message)
         dead: list[WebSocket] = []
 
+        logger.debug("Sending %s message to %d connections for session %s",
+                    message.get("type"), len(connections), session_id)
+
         for ws in connections:
             try:
                 await ws.send_text(payload)
-            except Exception:
+            except Exception as e:
+                logger.error("Failed to send WebSocket message: %s", e)
                 dead.append(ws)
 
         # Clean up dead connections
