@@ -117,12 +117,12 @@ async def submit_feedback(
             await preference_learning.record_preference(
                 db=db,
                 prompt=gen.prompt,
-                checkpoint=gen.checkpoint_name or "unknown",
+                checkpoint=gen.checkpoint or "unknown",
                 loras=loras,
                 selected=True,
                 rejected=False,
                 model_family=gen.model_family or "sdxl",
-                task_type="standard",  # TODO: get from gen
+                task_type=gen.task_type or "standard",
                 stage=session.current_stage - 1,
                 session_id=req.session_id,
                 generation_id=gen.id,
@@ -247,7 +247,7 @@ async def reject_all(
         checkpoints_used = {}
         loras_used = {}
         for gen in rejected_gens:
-            checkpoint = gen.checkpoint_name
+            checkpoint = gen.checkpoint
             if checkpoint:
                 checkpoints_used[checkpoint] = checkpoints_used.get(checkpoint, 0) + 1
 
@@ -275,7 +275,7 @@ async def reject_all(
             await preference_learning.record_preference(
                 db=db,
                 prompt=gen.prompt,
-                checkpoint=gen.checkpoint_name or "unknown",
+                checkpoint=gen.checkpoint or "unknown",
                 loras=loras,
                 selected=False,
                 rejected=True,
